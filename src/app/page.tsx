@@ -177,7 +177,7 @@ export default function HomePage() {
             <AppIcon size={52} />
           </div>
           <h1 className="font-display font-bold" style={{ fontSize: "clamp(1.6rem, 4vw, 2.2rem)", color: "var(--ink)", letterSpacing: "-0.01em" }}>
-            文章を、もっと伝わる形に。
+            文章をもっと伝わる形に。
           </h1>
           <p className="text-sm leading-relaxed max-w-xl mx-auto" style={{ color: "var(--ink-muted)" }}>
             係り受け・読点・主語と述語の距離・重複表現・あいまいな指示語をチェックし、読みやすい文章に整えます。
