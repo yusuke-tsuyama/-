@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { AnalysisResult } from "@/types";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseTable } from "@/lib/supabase";
 import AppIcon from "@/components/AppIcon";
 import ScoreRing from "@/components/ScoreRing";
 import CheckCard from "@/components/CheckCard";
@@ -28,6 +28,7 @@ export default function HomePage() {
   const [showTerms, setShowTerms] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
+  const [saved, setSaved] = useState(false);
   const [onboardingMode, setOnboardingMode] = useState<"onboarding" | "tutorial-only" | null>("onboarding");
 
   const handleOnboardingComplete = () => {
@@ -53,12 +54,15 @@ export default function HomePage() {
       const analysisResult = data as AnalysisResult;
       setResult(analysisResult);
 
-      await supabase.from("diagnoses").insert({
-        input_text: text.slice(0, 500),
-        score: analysisResult.score,
-        summary: analysisResult.summary,
-        result_json: JSON.stringify(analysisResult),
-      });
+      const table = getSupabaseTable("diagnoses");
+      if (table) {
+        await table.insert({
+          input_text: text.slice(0, 500),
+          score: analysisResult.score,
+          summary: analysisResult.summary,
+          result_json: JSON.stringify(analysisResult),
+        });
+      }
       setHistoryRefresh((n) => n + 1);
 
       setTimeout(() => {
@@ -78,6 +82,25 @@ export default function HomePage() {
     setTimeout(() => {
       document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
+  };
+
+
+  const handleSave = async () => {
+    if (!result || !text) return;
+    const table = getSupabaseTable("diagnoses");
+    if (!table) {
+      alert("Supabaseが設定されていません。");
+      return;
+    }
+    await table.insert({
+      input_text: text.slice(0, 500),
+      score: result.score,
+      summary: result.summary,
+      result_json: JSON.stringify(result),
+    });
+    setSaved(true);
+    setHistoryRefresh((n) => n + 1);
+    setTimeout(() => setSaved(false), 3000);
   };
 
   const charCount = text.length;
@@ -154,7 +177,7 @@ export default function HomePage() {
             <AppIcon size={52} />
           </div>
           <h1 className="font-display font-bold" style={{ fontSize: "clamp(1.6rem, 4vw, 2.2rem)", color: "var(--ink)", letterSpacing: "-0.01em" }}>
-            文章をもっと伝わる形に。
+            文章を、もっと伝わる形に。
           </h1>
           <p className="text-sm leading-relaxed max-w-xl mx-auto" style={{ color: "var(--ink-muted)" }}>
             係り受け・読点・主語と述語の距離・重複表現・あいまいな指示語をチェックし、読みやすい文章に整えます。
@@ -243,7 +266,20 @@ export default function HomePage() {
 
             {result?.rewrites && (
               <div>
-                <h2 className="font-display font-bold mb-4" style={{ fontSize: "1.1rem", color: "var(--ink)" }}>リライト案</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-display font-bold" style={{ fontSize: "1.1rem", color: "var(--ink)" }}>リライト案</h2>
+                  <button
+                    onClick={handleSave}
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
+                    style={{
+                      background: saved ? "var(--ok-bg)" : "var(--accent-light)",
+                      color: saved ? "var(--ok)" : "var(--accent)",
+                      border: `1px solid ${saved ? "var(--ok)" : "#c7d9fb"}`,
+                    }}
+                  >
+                    {saved ? "✓ 保存しました" : "💾 履歴に保存する"}
+                  </button>
+                </div>
                 <RewritePanel rewrites={result.rewrites} />
               </div>
             )}

@@ -11,22 +11,11 @@ export function getSupabase(): SupabaseClient | null {
   return _client;
 }
 
-// Convenience proxy — safe to import anywhere
-export const supabase = {
-  from: (table: string) => {
-    const client = getSupabase();
-    if (!client) {
-      // Return a no-op object when Supabase is not configured
-      return {
-        insert: async () => ({ error: null }),
-        select: (_cols?: string) => ({
-          order: () => ({ limit: async () => ({ data: [], error: null }) }),
-        }),
-      };
-    }
-    return client.from(table);
-  },
-};
+export function getSupabaseTable(table: string) {
+  const client = getSupabase();
+  if (!client) return null;
+  return client.from(table);
+}
 
 export interface DiagnosisRecord {
   id?: string;
@@ -34,5 +23,5 @@ export interface DiagnosisRecord {
   input_text: string;
   score: number;
   summary: string;
-  result_json: string; // full JSON stringified
+  result_json: string;
 }
