@@ -86,7 +86,7 @@ export default function HistoryPanel({ onLoad, refreshTrigger, inModal = false }
     </>
   );
 
-  if (inModal) return listContent;
+  if (inModal) return <>{listContent}</>;
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(
