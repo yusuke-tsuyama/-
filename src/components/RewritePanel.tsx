@@ -47,7 +47,7 @@ export default function RewritePanel({ rewrites }: Props) {
             }}
           >
             <span>{tab.icon}</span>
-            <span className="hidden sm:inline">{tab.label}</span>
+            <span>{tab.label}</span>
           </button>
         ))}
         <div className="flex-1" />

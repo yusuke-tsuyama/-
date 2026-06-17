@@ -25,6 +25,7 @@ export default function HomePage() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [saved, setSaved] = useState(false);
@@ -101,7 +102,8 @@ export default function HomePage() {
       {onboardingMode && (
         <Onboarding mode={onboardingMode} onComplete={handleOnboardingComplete} />
       )}
-      {showTerms && <TermsModal onClose={() => setShowTerms(false)} />}
+      {showTerms && <TermsModal onClose={() => setShowTerms(false)} initialTab="terms" />}
+      {showPrivacy && <TermsModal onClose={() => setShowPrivacy(false)} initialTab="privacy" />}
       {showHistory && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -153,14 +155,14 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-6">
-        <div className="text-center space-y-3 py-4">
-          <div className="flex justify-center mb-3">
+        <div className="space-y-3 py-4">
+          <div className="mb-3">
             <AppIcon size={52} />
           </div>
           <h1 className="font-display font-bold" style={{ fontSize: "clamp(1.6rem, 4vw, 2.2rem)", color: "var(--ink)", letterSpacing: "-0.01em" }}>
             文章をもっと伝わる形に。
           </h1>
-          <p className="text-sm leading-relaxed max-w-xl mx-auto" style={{ color: "var(--ink-muted)" }}>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--ink-muted)" }}>
             係り受け・読点・主語と述語の距離・重複表現・あいまいな指示語をチェックし、読みやすい文章に整えます。
           </p>
         </div>
@@ -277,6 +279,8 @@ export default function HomePage() {
         <p>© {new Date().getFullYear()} 合同会社リベルダード. All rights reserved.</p>
         <p>
           <button onClick={() => setShowTerms(true)} className="underline underline-offset-2 hover:opacity-70 transition-opacity">利用規約</button>
+          {" · "}
+          <button onClick={() => setShowPrivacy(true)} className="underline underline-offset-2 hover:opacity-70 transition-opacity">プライバシーポリシー</button>
           {" · "}
           <button onClick={() => setOnboardingMode("tutorial-only")} className="underline underline-offset-2 hover:opacity-70 transition-opacity">使い方</button>
           {" · "}Powered by Claude AI

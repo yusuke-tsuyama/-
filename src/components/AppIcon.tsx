@@ -24,16 +24,6 @@ export default function AppIcon({ size = 32 }: { size?: number }) {
         strokeLinecap="round"
       />
 
-      {/* Check mark */}
-      <path
-        d="M7 16L10 19L15 13"
-        stroke="white"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeOpacity="0.5"
-      />
-
       {/* Lines representing text */}
       <rect x="6" y="26" width="12" height="1.5" rx="0.75" fill="white" fillOpacity="0.6" />
       <rect x="6" y="28.5" width="8" height="1.5" rx="0.75" fill="white" fillOpacity="0.35" />

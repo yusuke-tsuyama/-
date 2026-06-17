@@ -45,18 +45,25 @@ export default function Onboarding({ onComplete, mode = "onboarding" }: Props) {
   const [showTermsFull, setShowTermsFull] = useState(false);
 
   useEffect(() => {
+    if (mode === "onboarding" && localStorage.getItem("nihongo_checker_onboarded")) {
+      onComplete();
+      return;
+    }
     const t = setTimeout(() => setVisible(true), 50);
     return () => clearTimeout(t);
   }, []);
 
-  // Auto-advance splash after 2s
+  // Auto-advance splash after 4s
   useEffect(() => {
     if (phase !== "splash") return;
-    const t = setTimeout(() => setPhase("terms"), 2200);
+    const t = setTimeout(() => setPhase("terms"), 4000);
     return () => clearTimeout(t);
   }, [phase]);
 
   const handleComplete = () => {
+    if (mode === "onboarding") {
+      localStorage.setItem("nihongo_checker_onboarded", "1");
+    }
     setVisible(false);
     setTimeout(onComplete, 400);
   };
@@ -100,6 +107,18 @@ export default function Onboarding({ onComplete, mode = "onboarding" }: Props) {
           <div style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", marginTop: "0.5rem", opacity: visible ? 1 : 0, transition: "opacity 0.6s ease 0.5s" }}>
             provided by 合同会社リベルダード
           </div>
+          <div style={{ marginTop: "2rem", padding: "0.75rem 1.25rem", background: "rgba(255,255,255,0.08)", borderRadius: "0.75rem", maxWidth: 320, opacity: visible ? 1 : 0, transition: "opacity 0.6s ease 0.7s" }}>
+            <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)", marginBottom: "0.4rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>更新履歴</div>
+            <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.7)", lineHeight: 1.7, textAlign: "left" }}>
+              <strong style={{ color: "rgba(255,255,255,0.9)" }}>2026年6月17日</strong>：診断のアルゴリズム変更及び操作画面の改修を行いました。
+            </p>
+          </div>
+          <button
+            onClick={() => setPhase("terms")}
+            style={{ marginTop: "1.5rem", fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", opacity: visible ? 1 : 0, transition: "opacity 0.6s ease 1s" }}
+          >
+            スキップ
+          </button>
         </div>
         <style>{`@keyframes splashPop { from { opacity:0; transform:scale(0.6); } to { opacity:1; transform:scale(1); } }`}</style>
       </div>
