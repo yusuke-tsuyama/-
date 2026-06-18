@@ -87,6 +87,7 @@ export default function CheckCard({ item, index }: Props) {
               </span>
               {item.reason}
             </div>
+            {item.example && (
             <div
               className="text-xs p-2 rounded-lg"
               style={{
@@ -100,6 +101,7 @@ export default function CheckCard({ item, index }: Props) {
               </span>
               {item.example}
             </div>
+            )}
           </div>
         </details>
       )}

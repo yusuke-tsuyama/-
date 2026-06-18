@@ -57,7 +57,7 @@ export default function HomePage() {
       await saveDiagnosis({
         input_text: text.slice(0, 500),
         score: analysisResult.score,
-        summary: analysisResult.summary,
+        summary: analysisResult.summary ?? "",
         result_json: JSON.stringify(analysisResult),
       });
       setHistoryRefresh((n) => n + 1);
@@ -86,7 +86,7 @@ export default function HomePage() {
     await saveDiagnosis({
       input_text: text.slice(0, 500),
       score: result.score,
-      summary: result.summary,
+      summary: result.summary ?? "",
       result_json: JSON.stringify(result),
     });
     setSaved(true);

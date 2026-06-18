@@ -1,196 +1,170 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { createClient } from "@supabase/supabase-js";
 import { CLAUDE_MODEL } from "@/lib/constants";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const client = new Anthropic();
 
-const SYSTEM_PROMPT = `あなたは日本語文章の専門家です。ユーザーが入力した日本語文を以下の観点から診断し、必ずJSONのみで返答してください。マークダウンのコードブロックや説明文は一切含めないでください。
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-【診断ルール】
-1. 係り受けの分かりやすさ：修飾語と被修飾語をなるべく近づける
-2. 主語と述語の距離：主語と述語を離しすぎない
-3. 読点の位置：意味の切れ目に読点を置く
-4. 一文の長さ：一文に複数の意味を詰め込みすぎない
-5. 指示語の明確さ：「これ」「それ」「この」「その」等が何を指すか明確にする
-6. 重複表現：同じ意味の言い換えや不要な繰り返しを指摘する
-7. 文の順序：重要な語を文末近くでぼかさない、読者が一度で意味を取れる語順にする
-8. 読みやすさ：文章全体の流れが具体→解釈→主張になっているか
+const SYSTEM_PROMPT_DIAGNOSIS = `あなたは日本語文章の診断専門家です。
+以下の5点のみを診断し、JSONで返してください。説明文は不要です。
 
-【重要な注意点】
-- 文章の個性を消しすぎないこと
-- 過度な指摘は避け、本当に問題のある箇所のみを指摘する
-- 各statusは「OK」「注意」「要修正」のいずれか
-- 「の」の連打・読点の連打・語尾の崩し（「〜だよぉ」「〜ちゃいねぇ」等）・俗語・方言は、意図的な文体表現の可能性がある。指摘する場合は「意図的な表現の可能性があります」という留保を issue に必ず含めること
-- 口語体・話し言葉・感嘆的な文体は書き手の個性として尊重する。「要修正」ではなく「注意」にとどめること
-- 診断は問題点を指摘するが、それが個性か悪文かの最終判断はユーザーに委ねること
+【診断基準】
 
-【リライトの絶対ルール】
-- リライトは元の文章と必ず同程度の長さ・ボリュームにすること。短く要約・圧縮することを禁止する
-- 元の文章の全段落・全見出し・全論点を漏らさず含めること
-- 内容を削除・省略することを禁止する
-- 元の文章が長い場合も、その長さに完全に対応したリライトを出力すること
-- 元の文章に見出し（【】など）がある場合は、リライトにも同様の見出しを維持すること
+1. 修飾の順序と距離
+   NG: 長い修飾語が短い修飾語の後にある（逆順）
+   NG: 節より句が先にある
+   NG: 修飾語と被修飾語が3語以上離れている
+   NG: 入れ子が3重以上で述語が埋没している
+   NG: 「〜の〜の〜の〜の」と「の」が3回以上連続し修飾関係が不明
+   NG: 修飾節の主語が「が」ではなく「は」になっている
+   OK: 長→短、節→句の順。修飾語と被修飾語が直結している
 
-【リライト共通ルール：本多勝一の文章原則を全パターンに適用すること】
-- 意図的な文体逸脱（俗語・方言・語尾の伸ばし・読点の連打・「の」の連打）は書き手の個性として維持する。本多勝一ルールは「無意識の悪文を直す」ために使うのであって「個性を標準化する」ために使わない
-- 口語体・話し言葉の熱量・怒り・リズムはリライト後も維持する
-- 「はっきり言うぜ」「信じちゃいねぇんだよぉ」のような語気はリライトで消してはならない
-- 構造的に問題のない箇所は変えない。直す必要がない部分には手を入れない
-- 係り受け：長い修飾語を前に、短い修飾語を後に置く。節を先に、句を後に置く
-- 読点：長い修飾語が2つ以上あるときその境界にテンをうつ。逆順語順のときテンをうつ。不要なテンは打たない
-- 一文の長さ：入れ子構造が深くなる長文を避ける。「〜して、〜して」「〜が、〜が」の連打を避ける
-- 受動態：「〜される」「〜られる」を能動態に書き換える
-- 名詞化構文：「〜することが必要である」を「〜すべきだ」「〜しなければならない」に書き換える
-- 語の選択：漢語より和語を優先する（「使用する」→「使う」、「実施する」→「行う」）
-- 「の」の連打：「〜の〜の〜の」の連鎖を避け、文を分割するか語順を変える
-- 指示語：指示対象が遠い「これ」「それ」は名詞に置き換える
-- 「における」「といったものを」「に関して」「について」などの名詞化接続表現は必ず動詞に書き直す
-- 「信用性」「重要性」「可能性」などの「〜性」で終わる抽象名詞は、できる限り動詞や形容詞に置き換える（「信用できるかどうか」「重要かどうか」）
-- リライト後に自己チェックを行うこと。「の」が3回以上連続していないか、「における」「といった」「に関する」が残っていないか、受動態が残っていないかを確認し、残っていれば必ず書き直す
-- 名詞化構文チェック：文末が「〜こと」「〜もの」「〜ため」で終わっていないか確認する。終わっていれば動詞で言い切る形に書き直す
+2. 読点の位置
+   NG: 接続詞（「しかし」「なぜなら」「だから」「また」「ただし」等）の直後にテンがない
+   NG: 副詞的語句（「まず」「次に」「一方」「実は」等）の直後にテンがない
+   NG: 逆順修飾語（短→長の順）の境界にテンがない
+   NG: 重文（述語が2つある文）の境目にテンがない
+   NG: 挿入句の前後にテンがない
+   NG: テンが多すぎて思想の単位が不明確（1文に5個以上など）
+   OK: 接続詞・副詞的語句の直後、逆順境界、重文境目、挿入句前後のみ
 
-【各パターンの差別化ルール】
+3. 一文の長さ
+   NG: 句読点なしで80字超
+   NG: 接続助詞（て・が・し・けど）が3回以上連続
+   NG: 「〜ました。〜ました。」など同じ語尾が3文以上連続
+   NG: 体言止めが3文以上連続
+   OK: 1文60字以内目安。語尾・文末表現に変化がある
 
-■ simple（読みやすい版）
-- 口語に近い自然な文体。難しい漢語を和語に置き換える
-- 一文を短くし、読点で区切る
-- 「〜です。〜ます。」調で統一
-- 専門用語には補足説明を加える
-- 段落構成は元のまま維持
-- 元の文章が「〜ぜ」「〜ぞ」「〜だよぉ」などの強い語気を持つ場合、その語気を弱めない。「〜よ」「〜ね」への置き換えは禁止。語気は元の文章の強さを維持する
+4. 指示語
+   NG: 指示語（「これ」「それ」「この」「その」等）の指示対象が直前の文にない
+   NG: 段落をまたいで指示語を使っている
+   OK: 指示対象が直前文に明示されている
 
-■ web（Web記事向け版）
-- 【見出し】や「■」で段落を明示的に区切る
-- 箇条書きを積極的に活用し、スキャンしやすくする
-- 一文を短くし、テンポよく読める構成にする
-- 冒頭に結論・要点を置く（結論先行型）
-- 太字にしたい箇所は【】で囲む
+5. 重複・接続詞の濫用
+   NG: 同一接続詞（「しかし」「また」「そして」等）が2文連続
+   NG: 接続助詞「が」が1文中に2回以上、または連文で連続
+   NG: 同じ語句・表現の無意識な繰り返し
+   NG: 一文に「は」が3回以上登場し文の骨格が不明瞭
+   OK: 接続詞・表現に適度な変化がある
 
-■ business（ビジネス文書版）
-- 文体は必ず「〜です」「〜します」「〜ません」の丁寧体で統一する。「〜だ」「〜だろう」「〜しよう」の常体は使わない
-- 「俺」「なぁ」「ねぇ」などの口語・俗語は「私」「わたし」に置き換える。語尾の崩し（「〜だよぉ」等）は丁寧体に直す
-- ただし「はっきり申し上げます」のような格調ある表現は文頭に一回だけ使ってよい
-- 「における」「といったものを」「に関して」「〜性」などの名詞化構文・抽象名詞は使わない
-- 「〜かどうか、その重要性については」のような、動詞節と名詞句を接続する構造は使わない
-- 「信用できるかどうか」を述べた後に「その重要性」で受け直す二重構造は禁止
-- 動詞で完結させる。「他人の発言を信用しません」「他人の言葉を信頼しません」のように一文で言い切る
-- 文の構造：「はっきり申し上げます。私は、他人の発言を信用しません。」を理想形とする
-- 「〜でございます」は使わない
-- 格調は複雑な構文ではなく、語彙の品格で出す
-- 元の文章が口語体・俗語体であっても、business版では必ず丁寧体に変換する。これはbusiness版唯一の例外ルールとして個性保護より優先する
+【出力形式】JSONのみ。説明文不要。
+{"score":0-100,"checks":[{"name":"...","status":"OK|注意|要修正","issue":"具体的な該当箇所","reason":"理由"}]}`;
 
-返すJSONの形式：
-{
-  "score": 数値(0-100),
-  "summary": "全体評価の一言コメント",
-  "checks": [
-    {
-      "name": "係り受けの分かりやすさ",
-      "status": "OK" | "注意" | "要修正",
-      "issue": "指摘内容（OKの場合は問題なしの旨）",
-      "reason": "修正理由（OKの場合は評価理由）",
-      "example": "修正例または良い点の例示"
-    },
-    {
-      "name": "主語と述語の距離",
-      "status": "OK" | "注意" | "要修正",
-      "issue": "指摘内容",
-      "reason": "修正理由",
-      "example": "修正例"
-    },
-    {
-      "name": "読点の位置",
-      "status": "OK" | "注意" | "要修正",
-      "issue": "指摘内容",
-      "reason": "修正理由",
-      "example": "修正例"
-    },
-    {
-      "name": "一文の長さ",
-      "status": "OK" | "注意" | "要修正",
-      "issue": "指摘内容",
-      "reason": "修正理由",
-      "example": "修正例"
-    },
-    {
-      "name": "指示語の明確さ",
-      "status": "OK" | "注意" | "要修正",
-      "issue": "指摘内容",
-      "reason": "修正理由",
-      "example": "修正例"
-    },
-    {
-      "name": "重複表現",
-      "status": "OK" | "注意" | "要修正",
-      "issue": "指摘内容",
-      "reason": "修正理由",
-      "example": "修正例"
-    },
-    {
-      "name": "文の順序",
-      "status": "OK" | "注意" | "要修正",
-      "issue": "指摘内容",
-      "reason": "修正理由",
-      "example": "修正例"
-    },
-    {
-      "name": "読みやすさ",
-      "status": "OK" | "注意" | "要修正",
-      "issue": "指摘内容",
-      "reason": "修正理由",
-      "example": "修正例"
-    }
-  ],
-  "rewrites": {
-    "simple": "読みやすい版（元の文章の構成・段落・見出しをすべて維持しながら、自然な日本語に整えた完全版。元の文字数と同程度のボリュームを保つこと）",
-    "web": "Web記事向け版（元の文章の内容・構成をすべて維持しながら、見出しや段落を活用してスキャンしやすく整えた完全版。元の文字数と同程度のボリュームを保つこと）",
-    "business": "硬めのビジネス文書版（元の文章の構成・内容をすべて維持しながら、丁寧で格調ある表現に整えた完全版。元の文字数と同程度のボリュームを保つこと）"
-  }
-}`;
+const SYSTEM_PROMPT_REWRITE = `あなたは日本語文章のリライト専門家です。
+渡された診断結果をもとに文章を改善してください。
+
+【リライト原則（本多勝一『日本語の作文技術』準拠）】
+- 修飾語は長い順・節→句の順に並べる
+- 修飾語と被修飾語を離さない。「の」の連打は解消する
+- 修飾節の主語には「は」でなく「が」を使う
+- 接続詞・副詞的語句の直後にテンをうつ（「しかし、」「まず、」）
+- 逆順修飾・重文境目・挿入句の前後にテンをうつ
+- 不要なテンは打たない
+- 1文は60字以内を目安に。接続助詞の連打を避ける
+- 同じ語尾・体言止めの連続を避ける
+- 指示語は指示対象が直前にない場合は名詞に戻す
+- 同一接続詞・接続助詞「が」の連続を避ける
+- 「は」が1文に3回以上なら文を分割または「が」に置き換える
+
+【保護ルール】
+- 意図的と判断できる文体・リズムは変えない
+- 口語・話し言葉はそのまま保つ
+- 元の文字数±20%以内に収める
+
+【パターン別指示】
+■ simple：和語中心、短文、語気を維持
+■ web：結論先行、箇条書き可、【】で強調
+■ business：丁寧体、動詞で言い切る、名詞化禁止
+
+【出力形式】JSONのみ。説明文不要。
+{"simple":"...","web":"...","business":"..."}`;
 
 export async function POST(req: NextRequest) {
   try {
-    const { text } = await req.json();
+    const { text, sessionId } = await req.json();
 
     if (!text || typeof text !== "string") {
-      return NextResponse.json({ error: "テキストが入力されていません。" }, { status: 400 });
+      return NextResponse.json({ error: "テキストが必要です" }, { status: 400 });
     }
 
-    if (text.length > 4000) {
-      return NextResponse.json({ error: "文字数が多すぎます（3000字以内でお願いします）。" }, { status: 400 });
-    }
-
-    const message = await client.messages.create({
+    const diagnosisResponse = await client.messages.create({
       model: CLAUDE_MODEL,
-      max_tokens: 8000,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `以下の文章を診断してください。元の文章の文字数は${text.length}字です。リライト案は必ず同程度のボリュームで出力してください：\n\n${text}`,
-        },
-      ],
+      max_tokens: 1000,
+      system: SYSTEM_PROMPT_DIAGNOSIS,
+      messages: [{ role: "user", content: text }],
     });
 
-    const rawText = message.content
-      .filter((b) => b.type === "text")
-      .map((b) => (b as { type: "text"; text: string }).text)
+    const diagnosisText = diagnosisResponse.content
+      .filter((block): block is Anthropic.TextBlock => block.type === "text")
+      .map((block) => block.text)
       .join("");
 
-    // Strip markdown code fences if present
-    const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+    let diagnosisResult: {
+      score: number;
+      checks: Array<{ name: string; status: string; issue: string; reason: string }>;
+    };
 
-    let result;
     try {
-      result = JSON.parse(cleaned);
+      const cleanDiagnosis = diagnosisText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      diagnosisResult = JSON.parse(cleanDiagnosis);
     } catch {
-      return NextResponse.json({ error: "診断結果の解析に失敗しました。もう一度お試しください。" }, { status: 500 });
+      console.error("診断JSON parse失敗:", diagnosisText);
+      return NextResponse.json({ error: "診断結果の解析に失敗しました" }, { status: 500 });
+    }
+
+    const rewriteResponse = await client.messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 4000,
+      system: SYSTEM_PROMPT_REWRITE,
+      messages: [{
+        role: "user",
+        content: `元の文章：\n${text}\n\n診断結果：\n${JSON.stringify(diagnosisResult)}`,
+      }],
+    });
+
+    const rewriteText = rewriteResponse.content
+      .filter((block): block is Anthropic.TextBlock => block.type === "text")
+      .map((block) => block.text)
+      .join("");
+
+    let rewriteResult: { simple: string; web: string; business: string };
+
+    try {
+      const cleanRewrite = rewriteText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      rewriteResult = JSON.parse(cleanRewrite);
+    } catch {
+      console.error("リライトJSON parse失敗:", rewriteText);
+      return NextResponse.json({ error: "リライト結果の解析に失敗しました" }, { status: 500 });
+    }
+
+    const result = {
+      score: diagnosisResult.score,
+      checks: diagnosisResult.checks,
+      rewrites: rewriteResult,
+    };
+
+    if (sessionId) {
+      const { error: dbError } = await supabase.from("diagnoses").insert({
+        session_id: sessionId,
+        original_text: text,
+        score: result.score,
+        checks: result.checks,
+        rewrites: result.rewrites,
+        created_at: new Date().toISOString(),
+      });
+      if (dbError) {
+        console.error("Supabase保存エラー:", dbError);
+      }
     }
 
     return NextResponse.json(result);
-  } catch (err: unknown) {
-    console.error("Analysis error:", err);
-    const message = err instanceof Error ? err.message : "不明なエラーが発生しました。";
-    return NextResponse.json({ error: `エラーが発生しました: ${message}` }, { status: 500 });
+  } catch (error) {
+    console.error("API error:", error);
+    return NextResponse.json({ error: "サーバーエラーが発生しました" }, { status: 500 });
   }
 }

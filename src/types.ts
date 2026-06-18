@@ -5,12 +5,12 @@ export interface CheckItem {
   status: CheckStatus;
   issue: string;
   reason: string;
-  example: string;
+  example?: string;
 }
 
 export interface AnalysisResult {
   score: number;
-  summary: string;
+  summary?: string;
   checks: CheckItem[];
   rewrites: {
     simple: string;
