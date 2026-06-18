@@ -112,6 +112,9 @@ export default function Onboarding({ onComplete, mode = "onboarding" }: Props) {
             <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.7)", lineHeight: 1.7, textAlign: "left" }}>
               <strong style={{ color: "rgba(255,255,255,0.9)" }}>2026年6月17日</strong>：診断のアルゴリズム変更及び操作画面の改修を行いました。
             </p>
+            <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.7)", lineHeight: 1.7, textAlign: "left", marginTop: "0.4rem" }}>
+              <strong style={{ color: "rgba(255,255,255,0.9)" }}>2026年6月19日</strong>：診断アルゴリズムを改修のうえ、リライト生成の精度を向上させました。
+            </p>
           </div>
           <button
             onClick={() => setPhase("terms")}
