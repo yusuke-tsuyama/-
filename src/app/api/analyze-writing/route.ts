@@ -168,6 +168,18 @@ const SYSTEM_PROMPT_DIAGNOSIS = `
 
 ---
 
+### 基準6：段落の構成
+
+【診断内容】
+一つの段落に複数の主題が混在していないかを確認する。
+本多勝一の原則：一つの段落には一つの主題。段落の先頭文がその段落全体の主題を示すべき。
+
+【判定基準】
+- 問題なし：criteria配列にparagraphを含めない
+- 一つの段落に複数の主題が混在している箇所が1つ以上ある：statusを「注意」としてcriteria配列に含める
+
+---
+
 ## スコア算出式
 
 必ず以下の計算式のみを使ってscoreを算出せよ。
@@ -183,8 +195,8 @@ score = (OKの数×20) + (注意の数×10) + (要修正の数×0)
 | 注意   | 10点 |
 | 要修正 | 0点  |
 
-合計スコア = 基準1の点数 + 基準2の点数 + 基準3の点数 + 基準4の点数 + 基準5の点数
-（満点100点）
+合計スコア = 基準1の点数 + 基準2の点数 + 基準3の点数 + 基準4の点数 + 基準5の点数 + 基準6の点数
+（基準1〜4は常に含む。基準5・6は問題がある場合のみ含む）
 
 ---
 
@@ -224,12 +236,19 @@ score = (OKの数×20) + (注意の数×10) + (要修正の数×0)
       "name": "体言止めの使用頻度",
       "status": "注意",
       "comment": "<体言止めの使用数と全文末に対する割合を必ず記載。例：「全15文末のうち体言止め5箇所（33%）。過剰使用のため注意が必要です」>"
+    },
+    {
+      "id": "paragraph",
+      "name": "段落の構成",
+      "status": "注意",
+      "comment": "<混在している主題と該当段落を具体的に指摘する>"
     }
   ],
   "overall": "<総評。2〜4文で文章全体の特徴と改善のポイントを述べる。意図的な文体がある場合はその旨を言及する>"
 }
 
 重要：taigenは全文末の30%超または5文連続以上の場合のみcriteria配列に含めること。問題なければtaigenをcriteria配列から完全に省略すること。
+重要：paragraphは一つの段落に複数の主題が混在している場合のみcriteria配列に含めること。問題なければparagraphをcriteria配列から完全に省略すること。
 `;
 
 const SYSTEM_PROMPT_REWRITE = `
@@ -434,12 +453,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "リライト結果の解析に失敗しました" }, { status: 500 });
     }
 
-    const VALID_IDS = ["kakari", "ten", "no", "ukemi", "taigen"];
+    const VALID_IDS = ["kakari", "ten", "no", "ukemi", "taigen", "paragraph"];
+    const CONDITIONAL_IDS = new Set(["taigen", "paragraph"]);
     const filteredCriteria = VALID_IDS.reduce<Array<{ id: string; name: string; status: string; comment: string }>>((acc, id) => {
       const found = diagnosisResult.criteria.find((c: { id: string }) => c.id === id);
       if (found) {
         acc.push(found);
-      } else if (id !== "taigen") {
+      } else if (!CONDITIONAL_IDS.has(id)) {
         acc.push({ id, name: id, status: "OK", comment: "診断データなし" });
       }
       return acc;
