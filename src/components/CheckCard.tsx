@@ -1,5 +1,5 @@
 "use client";
-import { CheckItem, CheckStatus } from "@/types";
+import { CriterionItem, CheckStatus } from "@/types";
 
 const statusConfig: Record<
   CheckStatus,
@@ -32,7 +32,7 @@ const statusConfig: Record<
 };
 
 interface Props {
-  item: CheckItem;
+  item: CriterionItem;
   index: number;
 }
 
@@ -49,7 +49,6 @@ export default function CheckCard({ item, index }: Props) {
         opacity: 0,
       }}
     >
-      {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <span className="font-medium text-sm" style={{ color: "var(--ink)" }}>
           {item.name}
@@ -62,54 +61,9 @@ export default function CheckCard({ item, index }: Props) {
           {cfg.badge}
         </span>
       </div>
-
-      {/* Issue */}
-      <p className="text-sm mb-2" style={{ color: "var(--ink-soft)" }}>
-        {item.issue}
+      <p className="text-sm" style={{ color: "var(--ink-soft)" }}>
+        {item.comment}
       </p>
-
-      {/* Reason */}
-      {item.status !== "OK" && (
-        <details className="group">
-          <summary
-            className="text-xs cursor-pointer select-none font-medium"
-            style={{ color: cfg.text }}
-          >
-            理由と修正例を見る ▾
-          </summary>
-          <div className="mt-2 space-y-2">
-            <div
-              className="text-xs p-2 rounded-lg"
-              style={{ background: "rgba(0,0,0,0.04)", color: "var(--ink-soft)" }}
-            >
-              <span className="font-semibold block mb-0.5" style={{ color: "var(--ink)" }}>
-                理由
-              </span>
-              {item.reason}
-            </div>
-            {item.example && (
-            <div
-              className="text-xs p-2 rounded-lg"
-              style={{
-                background: "white",
-                border: `1px solid ${cfg.border}`,
-                color: "var(--ink-soft)",
-              }}
-            >
-              <span className="font-semibold block mb-0.5" style={{ color: cfg.text }}>
-                修正例
-              </span>
-              {item.example}
-            </div>
-            )}
-          </div>
-        </details>
-      )}
-      {item.status === "OK" && item.example && (
-        <p className="text-xs" style={{ color: cfg.text }}>
-          ▸ {item.example}
-        </p>
-      )}
     </div>
   );
 }

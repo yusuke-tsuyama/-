@@ -1,17 +1,16 @@
 export type CheckStatus = "OK" | "注意" | "要修正";
 
-export interface CheckItem {
+export interface CriterionItem {
+  id: string;
   name: string;
   status: CheckStatus;
-  issue: string;
-  reason: string;
-  example?: string;
+  comment: string;
 }
 
 export interface AnalysisResult {
   score: number;
-  summary?: string;
-  checks: CheckItem[];
+  overall: string;
+  criteria: CriterionItem[];
   rewrites: {
     simple: string;
     web: string;

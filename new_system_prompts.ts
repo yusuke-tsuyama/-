@@ -1,16 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
-import { createClient } from "@supabase/supabase-js";
-import { CLAUDE_MODEL } from "@/lib/constants";
-
-const client = new Anthropic();
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-const SYSTEM_PROMPT_DIAGNOSIS = `
+export const SYSTEM_PROMPT_DIAGNOSIS = `
 あなたは日本語の文章を診断するアシスタントです。
 本多勝一『日本語の作文技術』の原則に基づき、以下の5つの診断基準で文章を評価してください。
 
@@ -227,7 +215,7 @@ const SYSTEM_PROMPT_DIAGNOSIS = `
 }
 `;
 
-const SYSTEM_PROMPT_REWRITE = `
+export const SYSTEM_PROMPT_REWRITE = `
 あなたは日本語の文章をリライトするアシスタントです。
 本多勝一『日本語の作文技術』の原則に基づき、指定されたパターンでリライトしてください。
 
@@ -345,90 +333,3 @@ const SYSTEM_PROMPT_REWRITE = `
 ※ 原文が短い場合でも、各パターンの差別化を必ず維持すること。
 ※ 原文の改行・段落構造は各パターンの目的に合わせて再構成してよい。
 `;
-
-export async function POST(req: NextRequest) {
-  try {
-    const { text, sessionId } = await req.json();
-
-    if (!text || typeof text !== "string") {
-      return NextResponse.json({ error: "テキストが必要です" }, { status: 400 });
-    }
-
-    const diagnosisResponse = await client.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 8000,
-      system: SYSTEM_PROMPT_DIAGNOSIS,
-      messages: [{ role: "user", content: text }],
-    });
-
-    const diagnosisText = diagnosisResponse.content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
-      .map((block) => block.text)
-      .join("");
-
-    let diagnosisResult: {
-      score: number;
-      criteria: Array<{ id: string; name: string; status: string; comment: string }>;
-      overall: string;
-    };
-
-    try {
-      const cleanDiagnosis = diagnosisText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      diagnosisResult = JSON.parse(cleanDiagnosis);
-    } catch {
-      console.error("診断JSON parse失敗:", diagnosisText);
-      return NextResponse.json({ error: "診断結果の解析に失敗しました" }, { status: 500 });
-    }
-
-    const rewriteResponse = await client.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 8000,
-      system: SYSTEM_PROMPT_REWRITE,
-      messages: [{
-        role: "user",
-        content: `元の文章：\n${text}\n\n診断結果：\n${JSON.stringify(diagnosisResult)}`,
-      }],
-    });
-
-    const rewriteText = rewriteResponse.content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
-      .map((block) => block.text)
-      .join("");
-
-    let rewriteResult: { simple: string; web: string; business: string };
-
-    try {
-      const cleanRewrite = rewriteText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      rewriteResult = JSON.parse(cleanRewrite);
-    } catch {
-      console.error("リライトJSON parse失敗:", rewriteText);
-      return NextResponse.json({ error: "リライト結果の解析に失敗しました" }, { status: 500 });
-    }
-
-    const result = {
-      score: diagnosisResult.score,
-      overall: diagnosisResult.overall,
-      criteria: diagnosisResult.criteria,
-      rewrites: rewriteResult,
-    };
-
-    if (sessionId) {
-      const { error: dbError } = await supabase.from("diagnoses").insert({
-        session_id: sessionId,
-        original_text: text,
-        score: result.score,
-        checks: result.criteria,
-        rewrites: result.rewrites,
-        created_at: new Date().toISOString(),
-      });
-      if (dbError) {
-        console.error("Supabase保存エラー:", dbError);
-      }
-    }
-
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("API error:", error);
-    return NextResponse.json({ error: "サーバーエラーが発生しました" }, { status: 500 });
-  }
-}

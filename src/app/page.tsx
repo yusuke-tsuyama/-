@@ -57,7 +57,7 @@ export default function HomePage() {
       await saveDiagnosis({
         input_text: text.slice(0, 500),
         score: analysisResult.score,
-        summary: analysisResult.summary ?? "",
+        summary: analysisResult.overall ?? "",
         result_json: JSON.stringify(analysisResult),
       });
       setHistoryRefresh((n) => n + 1);
@@ -86,7 +86,7 @@ export default function HomePage() {
     await saveDiagnosis({
       input_text: text.slice(0, 500),
       score: result.score,
-      summary: result.summary ?? "",
+      summary: result.overall ?? "",
       result_json: JSON.stringify(result),
     });
     setSaved(true);
@@ -225,10 +225,10 @@ export default function HomePage() {
                   <div className="flex-shrink-0"><ScoreRing score={result.score} /></div>
                   <div className="flex-1 text-center sm:text-left">
                     <h2 className="font-display font-bold mb-2" style={{ fontSize: "1.2rem", color: "var(--ink)" }}>総合評価</h2>
-                    <p style={{ color: "var(--ink-soft)", lineHeight: 1.8 }}>{result.summary}</p>
+                    <p style={{ color: "var(--ink-soft)", lineHeight: 1.8 }}>{result.overall}</p>
                     <div className="flex flex-wrap gap-2 mt-4 justify-center sm:justify-start">
                       {(["OK", "注意", "要修正"] as const).map((s) => {
-                        const count = result.checks.filter((c) => c.status === s).length;
+                        const count = result.criteria.filter((c) => c.status === s).length;
                         if (count === 0) return null;
                         const colors = { OK: { bg: "var(--ok-bg)", text: "var(--ok)" }, 注意: { bg: "var(--warn-bg)", text: "var(--warn)" }, 要修正: { bg: "var(--error-bg)", text: "var(--error)" } };
                         return <span key={s} className="text-xs px-3 py-1 rounded-full font-medium" style={{ background: colors[s].bg, color: colors[s].text }}>{s} {count}件</span>;
@@ -242,7 +242,7 @@ export default function HomePage() {
             <div>
               <h2 className="font-display font-bold mb-4" style={{ fontSize: "1.1rem", color: "var(--ink)" }}>チェック項目</h2>
               <div className="grid sm:grid-cols-2 gap-3">
-                {loading ? Array.from({ length: 8 }).map((_, i) => <LoadingCard key={i} />) : result?.checks.map((item, i) => <CheckCard key={item.name} item={item} index={i} />)}
+                {loading ? Array.from({ length: 5 }).map((_, i) => <LoadingCard key={i} />) : result?.criteria.map((item, i) => <CheckCard key={item.id} item={item} index={i} />)}
               </div>
             </div>
 
