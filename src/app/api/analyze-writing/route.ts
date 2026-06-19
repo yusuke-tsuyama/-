@@ -159,9 +159,8 @@ const SYSTEM_PROMPT_DIAGNOSIS = `
 問題になるのは過剰使用による単調化、または連打による安易な印象を与える場合のみ。
 
 【判定基準】
-- OK：全文末の15%以下、かつ3文以上の体言止め連打なし
-- 注意：全文末の16〜30%、または3文以上連続する体言止め
-- 要修正：全文末の30%超、または5文以上連続する体言止め
+- 全文末の30%以下かつ5文連続未満の場合：criteria配列にtaigenを含めない（問題なし）
+- 全文末の30%超または5文連続以上の場合：statusを「注意」としてcriteria配列に含める
 
 【体言止めのカウント方法】
 「。」または「！」「？」で終わる文のうち、直前が名詞・固有名詞・形容動詞語幹で終わっている文を体言止めとしてカウントする。
@@ -223,12 +222,14 @@ score = (OKの数×20) + (注意の数×10) + (要修正の数×0)
     {
       "id": "taigen",
       "name": "体言止めの使用頻度",
-      "status": "<OK|注意|要修正>",
-      "comment": "<体言止めの使用数と全文末に対する割合を必ず記載。例：「全15文末のうち体言止め2箇所（13%）。問題ありません」>"
+      "status": "注意",
+      "comment": "<体言止めの使用数と全文末に対する割合を必ず記載。例：「全15文末のうち体言止め5箇所（33%）。過剰使用のため注意が必要です」>"
     }
   ],
   "overall": "<総評。2〜4文で文章全体の特徴と改善のポイントを述べる。意図的な文体がある場合はその旨を言及する>"
 }
+
+重要：taigenは全文末の30%超または5文連続以上の場合のみcriteria配列に含めること。問題なければtaigenをcriteria配列から完全に省略すること。
 `;
 
 const SYSTEM_PROMPT_REWRITE = `
@@ -434,10 +435,15 @@ export async function POST(req: NextRequest) {
     }
 
     const VALID_IDS = ["kakari", "ten", "no", "ukemi", "taigen"];
-    const filteredCriteria = VALID_IDS.map((id) => {
+    const filteredCriteria = VALID_IDS.reduce<Array<{ id: string; name: string; status: string; comment: string }>>((acc, id) => {
       const found = diagnosisResult.criteria.find((c: { id: string }) => c.id === id);
-      return found ?? { id, name: id, status: "OK", comment: "診断データなし" };
-    });
+      if (found) {
+        acc.push(found);
+      } else if (id !== "taigen") {
+        acc.push({ id, name: id, status: "OK", comment: "診断データなし" });
+      }
+      return acc;
+    }, []);
     const calcScore = (criteria: Array<{ status: string }>) =>
       criteria.reduce((sum, c) => sum + (c.status === "OK" ? 20 : c.status === "注意" ? 10 : 0), 0);
 
