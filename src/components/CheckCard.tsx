@@ -61,7 +61,7 @@ export default function CheckCard({ item, index }: Props) {
           {cfg.badge}
         </span>
       </div>
-      <p className="text-sm" style={{ color: "var(--ink-soft)" }}>
+      <p className="text-sm whitespace-pre-line" style={{ color: "var(--ink-soft)" }}>
         {item.comment}
       </p>
     </div>
