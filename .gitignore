@@ -3,3 +3,13 @@ node_modules/
 .env.local
 *.log
 .vercel
+
+# debug scripts (local only)
+inspect-diagnosis.mjs
+fix-score.py
+fix-copyright*.py
+sample*.txt
+
+# auto-generated
+.DS_Store
+tsconfig.tsbuildinfo
