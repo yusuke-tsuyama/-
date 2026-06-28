@@ -15,8 +15,8 @@ const TUTORIAL_STEPS = [
   {
     icon: "🔍",
     title: "診断ボタンを押す",
-    desc: "「文章を診断する」ボタンをクリックすると、AIが5つの基準から文章を分析します。10〜20秒ほどお待ちください。",
-    hint: "係り受け・読点・主語述語の距離・重複表現など、プロの編集者視点でチェックします。",
+    desc: "「文章を診断する」ボタンを押すと、AIが6つの基準から文章を分析します。まずスコアと診断結果が表示され、続いてリライト案が生成されます。文章が長い場合は数十秒から1分以上かかることがあります。",
+    hint: "係り受け・読点・「の」の連打・受動態・体言止め・段落構成の6観点から、プロの編集者視点でチェックします。",
   },
   {
     icon: "📊",
@@ -110,10 +110,7 @@ export default function Onboarding({ onComplete, mode = "onboarding" }: Props) {
           <div style={{ marginTop: "2rem", padding: "0.75rem 1.25rem", background: "rgba(255,255,255,0.08)", borderRadius: "0.75rem", maxWidth: 320, opacity: visible ? 1 : 0, transition: "opacity 0.6s ease 0.7s" }}>
             <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)", marginBottom: "0.4rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>更新履歴</div>
             <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.7)", lineHeight: 1.7, textAlign: "left" }}>
-              <strong style={{ color: "rgba(255,255,255,0.9)" }}>2026年6月17日</strong>：診断のアルゴリズム変更及び操作画面の改修を行いました。
-            </p>
-            <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.7)", lineHeight: 1.7, textAlign: "left", marginTop: "0.4rem" }}>
-              <strong style={{ color: "rgba(255,255,255,0.9)" }}>2026年6月19日</strong>：診断アルゴリズムを改修のうえ、リライト生成の精度を向上させました。
+              <strong style={{ color: "rgba(255,255,255,0.9)" }}>2026年6月28日</strong>：診断・リライトの精度を改善し、結果を段階的に表示するようにしました。入力の一括削除ボタンも追加しました。
             </p>
           </div>
           <button

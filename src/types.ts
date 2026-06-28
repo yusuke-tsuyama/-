@@ -11,7 +11,7 @@ export interface AnalysisResult {
   score: number;
   overall: string;
   criteria: CriterionItem[];
-  rewrites: {
+  rewrites?: {
     simple: string;
     web: string;
     business: string;

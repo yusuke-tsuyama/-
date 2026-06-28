@@ -159,12 +159,14 @@ const SYSTEM_PROMPT_DIAGNOSIS = `
 問題になるのは過剰使用による単調化、または連打による安易な印象を与える場合のみ。
 
 【判定基準】
-- 全文末の30%以下かつ5文連続未満の場合：criteria配列にtaigenを含めない（問題なし）
-- 全文末の30%超または5文連続以上の場合：statusを「注意」としてcriteria配列に含める
+- 本文文末の25%以下かつ5文連続未満の場合：criteria配列にtaigenを含めない（問題なし）
+- 本文文末の25%超または5文連続以上の場合：statusを「注意」としてcriteria配列に含める
 
 【体言止めのカウント方法】
 「。」または「！」「？」で終わる文のうち、直前が名詞・固有名詞・形容動詞語幹で終わっている文を体言止めとしてカウントする。
 「〜だ。」「〜である。」は体言止めではない。
+【重要：箇条書き・項目見出しの除外】
+「・」「-」「*」「●」「■」などの記号で始まる行、数字や中黒で列挙された項目、および見出し的な短い行（職務経歴書のスキル列挙・職歴項目など）の文末は、体言止めとしてカウントしない。これらは文書スタイルとして体言止めが許容されるため、母数（全文末）にも含めない。段落をなす本文（職務概要・自己PR・説明文など）の文末のみを対象に割合を算出する。
 
 ---
 
@@ -249,7 +251,7 @@ score = (OKの数×20) + (注意の数×10) + (要修正の数×0)
   "overall": "<総評。2〜4文で文章全体の特徴と改善のポイントを述べる。意図的な文体がある場合はその旨を言及する>"
 }
 
-重要：taigenは全文末の30%超または5文連続以上の場合のみcriteria配列に含めること。問題なければtaigenをcriteria配列から完全に省略すること。
+重要：taigenは本文文末（箇条書き・項目見出しを除く）の25%超または5文連続以上の場合のみcriteria配列に含めること。問題なければtaigenをcriteria配列から完全に省略すること。
 重要：paragraphは一つの段落に複数の主題が混在している場合のみcriteria配列に含めること。問題なければparagraphをcriteria配列から完全に省略すること。
 `;
 
@@ -262,6 +264,10 @@ const SYSTEM_PROMPT_REWRITE = `
 ## リライトの共通原則
 
 以下の原則をすべてのパターンに適用する。
+
+### 0. 出力記法（最優先）
+- 見出しや強調にMarkdown記法の記号（#、##、###）を使わない。出力はプレーンテキストとし、文頭に「#」を置かない。
+- 強調が必要な場合は【】や本文中の語で表現し、行頭の「#」記号は一切使用しない。
 
 ### 1. 係り受けの修正
 - 修飾語と被修飾語が離れすぎている場合は直結させる
@@ -304,7 +310,7 @@ const SYSTEM_PROMPT_REWRITE = `
 - 口語・和語・短文を維持する
 - 語気や感嘆表現（「〜だよ！」「〜なんだよ」）はそのまま残す
 - 名詞化構文・「の」連打を解消するが、文体の個性は崩さない
-- 体言止めは現状を維持する。ただし過剰（全文末の30%超）な場合は一部を動詞文末に変換する
+- 体言止めは現状を維持する。ただし過剰（本文文末の25%超）な場合は一部を動詞文末に変換する
 - 体言止め化の追加：文末が長い動詞句で終わっている箇所は、必要に応じて体言止めに変換してもよい（任意）
 
 【改行・空白行のルール（スマートフォン可読性優先）】
@@ -335,7 +341,7 @@ const SYSTEM_PROMPT_REWRITE = `
 - 箇条書きは情報が並列・列挙の場合に使用する
 - 名詞化構文・長すぎる文は短く切る
 - 体言止めは有効な表現技法として積極的に活用する
-  - ただし全文末の30%以内、3文以上連続させない
+  - ただし本文文末の25%以内、3文以上連続させない
   - 文末が長い動詞句で終わっている箇所は体言止めへの変換を検討する
   - 体言止めにしたほうがテンポが出る箇所では積極的に活用する
 
@@ -364,7 +370,7 @@ const SYSTEM_PROMPT_REWRITE = `
 - 名詞化構文を厳禁（「〜という点を踏まえ」「〜についての検討」等は使わない）
 - 体言止めは文末リズムをつけるために適度に使用する
   - 職務経歴書・報告書など実務文書では体言止めは有効な表現技法
-  - ただし全文末の15%以内、3文以上連続させない
+  - ただし本文文末の25%以内、3文以上連続させない
   - 体言止めに適した箇所（項目の見出し的な文、事実の列挙）で活用する
   - 主張・説明・結論の文末は動詞で締めることを優先する
 - 一文を短く（目安：40字以内）
@@ -385,7 +391,7 @@ const SYSTEM_PROMPT_REWRITE = `
 出力に関する禁止事項：score・criteria・comment・overall を含むすべての出力で、特定の著者名・書籍名、および「第一原則」「第二原則」「二大原則」「テン」「マル」等の独自用語を使用しないこと。読点・句点・修飾・係り受け・受動態などの一般的な日本語の用語で説明すること。
 
 以下のJSON形式で出力すること。他のテキストは一切出力しない。
-リクエストされたパターンのみを出力する。
+simple・web・business の3つのパターンを必ずすべて出力すること。どれか一つでも省略してはならない。原文がどんな種類（職務経歴書・記事・口語など）であっても、必ず3パターンすべてを生成する。
 
 {
   "simple": "<simpleリライト結果>",
@@ -393,19 +399,48 @@ const SYSTEM_PROMPT_REWRITE = `
   "business": "<businessリライト結果>"
 }
 
-※ リクエストが特定パターンのみの場合、不要なキーは省略してよい。
+※ 3つのキー（simple・web・business）はすべて必須であり、いかなる場合も省略してはならない。
 ※ 原文が短い場合でも、各パターンの差別化を必ず維持すること。
 ※ 原文の改行・段落構造は各パターンの目的に合わせて再構成してよい。
 `;
 
 export async function POST(req: NextRequest) {
   try {
-    const { text, sessionId } = await req.json();
+    const { text, sessionId, mode, diagnosisResult: clientDiagnosis } = await req.json();
 
     if (!text || typeof text !== "string") {
       return NextResponse.json({ error: "テキストが必要です" }, { status: 400 });
     }
 
+    // ===== mode === "rewrite": 診断をスキップし、受け取った診断結果でリライトのみ実行 =====
+    if (mode === "rewrite") {
+      if (!clientDiagnosis) {
+        return NextResponse.json({ error: "リライトには診断結果が必要です" }, { status: 400 });
+      }
+      const rewriteResponse = await client.messages.create({
+        model: CLAUDE_MODEL,
+        max_tokens: 8000,
+        system: SYSTEM_PROMPT_REWRITE,
+        messages: [{
+          role: "user",
+          content: `元の文章：\n${text}\n\n診断結果：\n${JSON.stringify(clientDiagnosis)}`,
+        }],
+      });
+      const rewriteText = rewriteResponse.content
+        .filter((block): block is Anthropic.TextBlock => block.type === "text")
+        .map((block) => block.text)
+        .join("");
+      try {
+        const cleanRewrite = rewriteText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        const rewriteResult = JSON.parse(cleanRewrite);
+        return NextResponse.json({ rewrites: rewriteResult });
+      } catch {
+        console.error("リライトJSON parse失敗:", rewriteText);
+        return NextResponse.json({ error: "リライト結果の解析に失敗しました" }, { status: 500 });
+      }
+    }
+
+    // ===== レート制限チェック（診断系のリクエストのみ） =====
     try {
       const ip = (req.headers.get("x-forwarded-for") ?? "unknown").split(",")[0].trim();
       const today = new Date().toISOString().slice(0, 10);
@@ -437,6 +472,7 @@ export async function POST(req: NextRequest) {
       // レート制限チェック失敗時は可用性を優先して診断を続行
     }
 
+    // ===== 診断 =====
     const diagnosisResponse = await client.messages.create({
       model: CLAUDE_MODEL,
       max_tokens: 8000,
@@ -463,6 +499,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "診断結果の解析に失敗しました" }, { status: 500 });
     }
 
+    // ===== スコア計算（リライトより前に実施） =====
+    const VALID_IDS = ["kakari", "ten", "no", "ukemi", "taigen", "paragraph"];
+    const CONDITIONAL_IDS = new Set(["taigen", "paragraph"]);
+    const FIXED_COUNT = 4;
+    const CONDITIONAL_COUNT = 2;
+
+    const filteredCriteria = VALID_IDS.reduce<Array<{ id: string; name: string; status: string; comment: string }>>((acc, id) => {
+      const found = diagnosisResult.criteria.find((c: { id: string }) => c.id === id);
+      if (found) {
+        acc.push(found);
+      } else if (!CONDITIONAL_IDS.has(id)) {
+        acc.push({ id, name: id, status: "OK", comment: "問題ありません" });
+      }
+      return acc;
+    }, []);
+
+    const pointOf = (status: string) => (status === "OK" ? 20 : status === "注意" ? 10 : 0);
+    const earnedFromShown = filteredCriteria.reduce((sum, c) => sum + pointOf(c.status), 0);
+    const shownConditional = filteredCriteria.filter((c) => CONDITIONAL_IDS.has(c.id)).length;
+    const omittedConditional = CONDITIONAL_COUNT - shownConditional;
+    const earned = earnedFromShown + omittedConditional * 20;
+    const denominator = (FIXED_COUNT + CONDITIONAL_COUNT) * 20;
+    const score = Math.round((earned / denominator) * 100);
+
+    const diagnosisOnly = {
+      score,
+      overall: diagnosisResult.overall,
+      criteria: filteredCriteria,
+    };
+
+    // ===== mode === "diagnosis": リライトせず診断結果のみ返す =====
+    if (mode === "diagnosis") {
+      return NextResponse.json(diagnosisOnly);
+    }
+
+    // ===== 後方互換（mode 無し）: リライトまで実行して全部返す =====
     const rewriteResponse = await client.messages.create({
       model: CLAUDE_MODEL,
       max_tokens: 8000,
@@ -488,33 +560,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "リライト結果の解析に失敗しました" }, { status: 500 });
     }
 
-    const VALID_IDS = ["kakari", "ten", "no", "ukemi", "taigen", "paragraph"];
-    const CONDITIONAL_IDS = new Set(["taigen", "paragraph"]);
-    const FIXED_COUNT = 4;
-    const CONDITIONAL_COUNT = 2;
-
-    const filteredCriteria = VALID_IDS.reduce<Array<{ id: string; name: string; status: string; comment: string }>>((acc, id) => {
-      const found = diagnosisResult.criteria.find((c: { id: string }) => c.id === id);
-      if (found) {
-        acc.push(found);
-      } else if (!CONDITIONAL_IDS.has(id)) {
-        acc.push({ id, name: id, status: "OK", comment: "問題ありません" });
-      }
-      return acc;
-    }, []);
-
-    const pointOf = (status: string) => (status === "OK" ? 20 : status === "注意" ? 10 : 0);
-    const earnedFromShown = filteredCriteria.reduce((sum, c) => sum + pointOf(c.status), 0);
-    const shownConditional = filteredCriteria.filter((c) => CONDITIONAL_IDS.has(c.id)).length;
-    const omittedConditional = CONDITIONAL_COUNT - shownConditional;
-    const earned = earnedFromShown + omittedConditional * 20;
-    const denominator = (FIXED_COUNT + CONDITIONAL_COUNT) * 20;
-    const score = Math.round((earned / denominator) * 100);
-
     const result = {
-      score,
-      overall: diagnosisResult.overall,
-      criteria: filteredCriteria,
+      ...diagnosisOnly,
       rewrites: rewriteResult,
     };
 

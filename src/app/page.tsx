@@ -22,6 +22,7 @@ function LoadingCard() {
 export default function HomePage() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "diagnosing" | "rewriting" | "done">("idle");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showTerms, setShowTerms] = useState(false);
@@ -35,38 +36,69 @@ export default function HomePage() {
     setOnboardingMode(null);
   };
 
+  const handleClear = () => {
+    if (!text.trim()) return;
+    if (window.confirm("入力内容を削除します。本当によろしいですか？")) {
+      setText("");
+      setResult(null);
+      setError(null);
+      setSaved(false);
+      setPhase("idle");
+    }
+  };
+
   const handleAnalyze = async () => {
     if (!text.trim()) return;
     setLoading(true);
+    setPhase("diagnosing");
     setResult(null);
     setError(null);
 
     try {
-      const res = await fetch("/api/analyze-writing", {
+      // ===== 1段階目：診断のみ（スコア・項目を先に表示） =====
+      const diagRes = await fetch("/api/analyze-writing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, mode: "diagnosis" }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "エラーが発生しました。");
+      const diagData = await diagRes.json();
+      if (!diagRes.ok) throw new Error(diagData.error || "エラーが発生しました。");
 
-      const analysisResult = data as AnalysisResult;
-      setResult(analysisResult);
-
-      await saveDiagnosis({
-        input_text: text.slice(0, 500),
-        score: analysisResult.score,
-        summary: analysisResult.overall ?? "",
-        result_json: JSON.stringify(analysisResult),
-      });
-      setHistoryRefresh((n) => n + 1);
+      const diagnosisResult = diagData as AnalysisResult;
+      setResult(diagnosisResult);
+      setLoading(false);
+      setPhase("rewriting");
 
       setTimeout(() => {
         document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
+
+      // ===== 2段階目：リライト（診断結果を送り返す） =====
+      const rewriteRes = await fetch("/api/analyze-writing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, mode: "rewrite", diagnosisResult }),
+      });
+
+      const rewriteData = await rewriteRes.json();
+      if (!rewriteRes.ok) throw new Error(rewriteData.error || "リライトの生成に失敗しました。");
+
+      const fullResult: AnalysisResult = { ...diagnosisResult, rewrites: rewriteData.rewrites };
+      setResult(fullResult);
+      setPhase("done");
+
+      // ===== 全部揃ってから履歴保存 =====
+      await saveDiagnosis({
+        input_text: text.slice(0, 500),
+        score: fullResult.score,
+        summary: fullResult.overall ?? "",
+        result_json: JSON.stringify(fullResult),
+      });
+      setHistoryRefresh((n) => n + 1);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "エラーが発生しました。");
+      setPhase("idle");
     } finally {
       setLoading(false);
     }
@@ -189,16 +221,28 @@ export default function HomePage() {
               <span className="text-xs font-mono" style={{ color: overLimit ? "var(--error)" : "var(--ink-muted)" }}>
                 {charCount.toLocaleString()} / {MAX_CHARS.toLocaleString()} 文字
               </span>
+              <div className="flex items-center gap-2">
+              <button
+                onClick={handleClear}
+                disabled={loading || phase === "rewriting" || !text.trim()}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium"
+                style={{ background: "var(--paper)", color: !text.trim() || loading || phase === "rewriting" ? "var(--ink-muted)" : "var(--ink-soft)", border: "1px solid var(--border)", cursor: !text.trim() || loading || phase === "rewriting" ? "not-allowed" : "pointer" }}
+              >
+                🗑️ 入力内容を削除
+              </button>
               <button
                 onClick={handleAnalyze}
-                disabled={loading || !text.trim() || overLimit}
+                disabled={loading || phase === "rewriting" || !text.trim() || overLimit}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium text-white"
                 style={{ background: loading || !text.trim() || overLimit ? "var(--ink-muted)" : "var(--accent)", cursor: loading || !text.trim() || overLimit ? "not-allowed" : "pointer" }}
               >
-                {loading ? (
+                {phase === "diagnosing" ? (
                   <><span className="inline-block w-4 h-4 rounded-full border-2 border-white border-t-transparent" style={{ animation: "spin 0.7s linear infinite" }} />診断中...</>
+                ) : phase === "rewriting" ? (
+                  <><span className="inline-block w-4 h-4 rounded-full border-2 border-white border-t-transparent" style={{ animation: "spin 0.7s linear infinite" }} />リライト生成中...</>
                 ) : <>🔍 文章を診断する</>}
               </button>
+              </div>
             </div>
           </div>
         </div>
@@ -266,7 +310,7 @@ export default function HomePage() {
               </div>
             )}
 
-            {loading && <div className="rounded-2xl p-6 shimmer" style={{ height: 200, border: "1px solid var(--border)" }} />}
+            {phase === "rewriting" && <div className="rounded-2xl p-6 shimmer" style={{ height: 200, border: "1px solid var(--border)" }} />}
           </div>
         )}
       </main>
