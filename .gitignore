@@ -6,9 +6,14 @@ node_modules/
 
 # debug scripts (local only)
 inspect-diagnosis.mjs
-fix-score.py
-fix-copyright*.py
+fix-*.py
+c.py
 sample*.txt
+step*.txt
+
+# backups
+*.bak
+*.bak*
 
 # auto-generated
 .DS_Store
